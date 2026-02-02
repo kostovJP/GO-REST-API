@@ -2,7 +2,6 @@ package models
 
 import (
 	"time"
-
 	"example.com/REST-API/db"
 )
 
@@ -18,7 +17,7 @@ type Event struct {
 	UserId      int
 }
 
-func (evt Event) Save() error {
+func (evt *Event) Save() error {
 	// the query that we will use to insert the event into our table events.
 	// using the ? method of inserting values is the safest one that
 	// prevents sql injections.
