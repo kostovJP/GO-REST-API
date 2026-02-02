@@ -29,6 +29,8 @@ func createEvent(context *gin.Context) {
 
 	// gin internally will scan the request body and then store the data
 	// from that request body into the event object passed to ShouldBindJSON.
+	// We are passing the address because we want the actual event object to be populated
+	// with data not it's copy.
 	err := context.ShouldBindJSON(&event)
 
 	if err != nil {
@@ -92,6 +94,124 @@ func getEvent(context *gin.Context) {
 		gin.H{
 			"message": "event found",
 			"event":   event,
+		},
+	)
+}
+
+func updateEvent(context *gin.Context) {
+	eventID, err := strconv.ParseInt(context.Param("id"), 10, 64)
+
+	if err != nil {
+		context.JSON(
+			http.StatusBadRequest,
+			gin.H{
+				"message":"id invalid!!",
+			},
+		)
+
+		return
+	}
+	
+	_, err = models.GetEventById(eventID)
+
+	if err != nil {
+		context.JSON(
+			http.StatusInternalServerError,
+			gin.H{
+				"message":"Coudnot fetch event from database...",
+			},
+		)
+
+		return 
+	}
+
+	//in updateEvent() we are expecting a body along with the request.
+	var updatedEvent models.Event
+	err = context.ShouldBindJSON(&updatedEvent)
+
+	if err != nil {
+		context.JSON(
+			http.StatusBadRequest,
+			gin.H{
+				"message":"Couldnot parse event data...",
+			},
+		)
+
+		return
+	}
+
+	// the id might not be included in the body, but we know that it has to be the 
+	// id mentioned in the URL param
+	updatedEvent.ID = eventID
+	err = updatedEvent.Update()	
+
+	if err != nil {
+		context.JSON(
+			http.StatusInternalServerError,
+			gin.H{
+				"message":"Couldnot update event..",
+			},
+		)
+
+		return 
+	}
+
+	//success response:
+	context.JSON(
+		http.StatusOK,
+		gin.H{
+			"message":"Event updated successfully..",
+			"event": updatedEvent,
+		},
+	)
+}
+
+func deleteEvent(context *gin.Context) {
+	eventID, err := strconv.ParseInt(context.Param("id"),10, 64)
+
+	if err != nil {
+		context.JSON(
+			http.StatusBadRequest,
+			gin.H{
+				"message":"Couldnot parse event data...",
+			},
+		)
+
+		return
+	}
+
+	event, err := models.GetEventById(eventID)
+
+	if err != nil {
+		context.JSON(
+			http.StatusInternalServerError,
+			gin.H{
+				"message":"Couldnot find event with specified id..",
+			},
+		)
+
+		return
+	}
+
+	//here we are not expecting any body, just the event id in the params.
+	err = event.Delete()
+
+	if err != nil {
+		context.JSON(
+			http.StatusBadRequest,
+			gin.H{
+				"message":"couldnot delete event..",
+			},
+		)
+
+		return
+	}
+
+	context.JSON(
+		http.StatusOK,
+		gin.H{
+			"message":"Event deleted successfully...",
+			"event": event,
 		},
 	)
 }
