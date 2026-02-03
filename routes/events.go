@@ -24,6 +24,9 @@ func getEvents(context *gin.Context) {
 	context.JSON(http.StatusOK, gin.H{"events": events})
 }
 
+// protected
+// the token should be part of the request header( Authorization header ).
+// only a logged in user (a user having a valid token can create an event)
 func createEvent(context *gin.Context) {
 	var event models.Event
 
@@ -38,8 +41,12 @@ func createEvent(context *gin.Context) {
 		return
 	}
 
-	event.ID = 1 //a dummy ID for now
-	event.UserId = 1
+	// event id will be generated automatically, since we are creating a new event here,
+	// and we have autoincrement set to event ID.
+	// but we need to find the id of the user who created this event, and assign it to 
+	// this event object so that it can be saved to the database.
+	userId := context.GetInt64("userId") //getting the user id from context as we saved it there in the auth middleware.
+	event.UserId = userId
 
 	//save the newly created event.
 	err = event.Save()
@@ -99,35 +106,52 @@ func getEvent(context *gin.Context) {
 }
 
 func updateEvent(context *gin.Context) {
-	eventID, err := strconv.ParseInt(context.Param("id"), 10, 64)
+	// only the user who have created the event, should be able to update or delete that
+	// event. The id of the user that is trying to update can be obtained from the 
+	// context.Get("userId"). And we need to extract the id of the user mentioned in
+	// the event.
+	// eventID, err := strconv.ParseInt(context.Param("id"), 10, 64)
 
-	if err != nil {
-		context.JSON(
-			http.StatusBadRequest,
-			gin.H{
-				"message":"id invalid!!",
-			},
-		)
+	// if err != nil {
+	// 	context.JSON(
+	// 		http.StatusBadRequest,
+	// 		gin.H{
+	// 			"message":"id invalid!!",
+	// 		},
+	// 	)
 
-		return
-	}
+	// 	return
+	// }
 	
-	_, err = models.GetEventById(eventID)
+	// event, err := models.GetEventById(eventID)
 
-	if err != nil {
-		context.JSON(
-			http.StatusInternalServerError,
-			gin.H{
-				"message":"Coudnot fetch event from database...",
-			},
-		)
+	// if err != nil {
+	// 	context.JSON(
+	// 		http.StatusInternalServerError,
+	// 		gin.H{
+	// 			"message":"Coudnot fetch event from database...",
+	// 		},
+	// 	)
 
-		return 
-	}
+	// 	return 
+	// }
+
+	// evtUser := event.UserId
+	// user := context.GetInt64("userId")
+
+	// if evtUser != user {
+	// 	context.JSON(
+	// 		http.StatusUnauthorized,
+	// 		gin.H{
+	// 			"message":"Not authorized",
+	// 		},
+	// 	)
+	// 	return
+	// }
 
 	//in updateEvent() we are expecting a body along with the request.
 	var updatedEvent models.Event
-	err = context.ShouldBindJSON(&updatedEvent)
+	err := context.ShouldBindJSON(&updatedEvent)
 
 	if err != nil {
 		context.JSON(
@@ -140,6 +164,7 @@ func updateEvent(context *gin.Context) {
 		return
 	}
 
+	eventID := context.GetInt64("eventId")
 	// the id might not be included in the body, but we know that it has to be the 
 	// id mentioned in the URL param
 	updatedEvent.ID = eventID

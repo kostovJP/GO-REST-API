@@ -1,6 +1,8 @@
 package models
 
 import (
+	"errors"
+
 	"example.com/REST-API/db"
 	"example.com/REST-API/utils"
 )
@@ -46,5 +48,38 @@ func (user *User) Save() error {
 	}
 
 	user.ID = userID
+	return nil
+}
+
+func (user *User) ValidateCredentials() error {
+	query := `SELECT id, password FROM users WHERE email = ?`
+
+	stmt, err := db.DB.Prepare(query)
+
+	if err != nil {
+		return err
+	}
+
+	defer stmt.Close()
+
+	result := stmt.QueryRow(user.Email)
+
+	var hashedPassword string
+	err = result.Scan(
+		&user.ID, 
+		&hashedPassword,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	isPasswordValid := utils.CheckPasswordHash(hashedPassword, user.Password)
+
+	if !isPasswordValid {
+		return errors.New("email or password does not match!!! Please try again")
+	}
+
+	//everything is fine at this point.
 	return nil
 }
